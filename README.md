@@ -1,1 +1,1 @@
-# cVAE
+# Conditional Variational AutoEncoder
