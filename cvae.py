@@ -33,3 +33,18 @@ test_size = 10000
 #creating a input pipeline
 train_dataset = (tf.data.Dataset.from_tensor_slices(train_images).shuffle(train_size).batch(batch_size))
 test_dataset = (tf.data.Dataset.from_tensor_slices(test_images).shuffle(test_size).batch(batch_size))
+
+class CVAE(tf.keras.Model):
+
+    def __init__(self, latent_dim):
+        super(CVAE, self).__init__()
+        self.latent_dim = latent_dim
+        self.encoder = tf.keras.Sequential(
+                [
+                    tf.keras.layers.InputLayer(input_shape=(28, 28, 1)),
+                    tf.keras.layers.Conv2D(filters=32, kernel_size=3, strides=(2,2,), activation='relu'),
+                    tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=(2,2,), activation='relu'),
+                    tf.keras.layers.Flatten(),
+                    tf.keras.layers.Dense(latent_dim + latent_dim),
+                ]
+                )
