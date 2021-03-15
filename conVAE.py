@@ -68,17 +68,17 @@ class CVAE(tf.keras.Model):
 
     #encode pipeline
     def encode(self, x):
-        mean, logvar = tf.split(self.encode(x), num_of_size_splits=2, axis=1)
+        mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)
         return mean, logvar
     
     #reparameterize 
     def reparameterize(self, mean, logvar):
         eps = tf.random.normal(shape=mean.shape)
-        return eps * tf.eps(logvar * 0.5) + mean
+        return eps * tf.exp(logvar * 0.5) + mean
     
     #decode pipline
     def decode(self, z, apply_sigmoid=False):
-        logits = self.decode(z)
+        logits = self.decoder(z)
         if apply_sigmoid:
             probs = tf.sigmoid(logits)
             return probs
@@ -116,4 +116,45 @@ def train_step(model, x, optimizer):
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
 
+epochs = 10
+latent_dim = 2
+num_examples_to_generate = 16
 
+random_vector_for_generation = tf.random.normal(shape=[num_examples_to_generate, latent_dim])
+model = CVAE(latent_dim)
+
+def generate_and_save_images(model, epoch, test_sample):
+  mean, logvar = model.encode(test_sample)
+  z = model.reparameterize(mean, logvar)
+  predictions = model.sample(z)
+  fig = plt.figure(figsize=(4, 4))
+
+  for i in range(predictions.shape[0]):
+    plt.subplot(4, 4, i + 1)
+    plt.imshow(predictions[i, :, :, 0], cmap='gray')
+    plt.axis('off')
+
+  # tight_layout minimizes the overlap between 2 sub-plots
+  plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
+  plt.show()
+
+
+assert batch_size >= num_examples_to_generate
+for test_batch in test_dataset.take(1):
+  test_sample = test_batch[0:num_examples_to_generate, :, :, :]
+
+generate_and_save_images(model, 0, test_sample)
+
+for epoch in range(1, epochs + 1):
+  start_time = time.time()
+  for train_x in train_dataset:
+    train_step(model, train_x, optimizer)
+  end_time = time.time()
+
+  loss = tf.keras.metrics.Mean()
+  for test_x in test_dataset:
+    loss(compute_loss(model, test_x))
+  elbo = -loss.result()
+  display.clear_output(wait=False)
+  print('Epoch: {}, Test set ELBO: {}, time elapse for current epoch: {}'.format(epoch, elbo, end_time - start_time))
+  generate_and_save_images(model, epoch, test_sample)
